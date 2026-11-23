@@ -35,13 +35,18 @@ you ──► orchestrator (Opus) ──► task.mjs creates a task, branch and 
             sign-off ──► merge to main ──► changelog, memory, playbook updates
 ```
 
-**Tracks.** Each task runs on a track that sets its stages:
+**Tracks, sizes and stages.** Each task has a track that sets its minimum stages, and a size that sets
+how many acceptance criteria it may have (`acBudget`: small 8, medium 20, large 40). The orchestrator
+adds optional stages only when they pay off, so a small app runs a lean team:
 
-| Track | Use for | Stages |
-|---|---|---|
-| `trivial` | copy, styling, config, tiny fixes | implementation → review → signoff |
-| `standard` | any new or changed behaviour | requirements → ux → architecture → tests → implementation → review → qa → release → docs → signoff |
-| `risky` | auth, payments, personal data, migrations, infra, CI | standard + a security review |
+| Track | Use for | Always runs | Optional |
+|---|---|---|---|
+| `trivial` | copy, styling, config, tiny fixes | implementation → review → signoff | – |
+| `standard` | any new or changed behaviour | requirements → implementation → review → signoff | ux, architecture, tests (`--with`), qa, release, docs |
+| `risky` | auth, payments, personal data, migrations, infra, CI | requirements → architecture → tests → implementation → review → security → signoff | ux, qa, release, docs |
+
+On standard tasks the implementer writes the tests with the code (unit tests for core logic, one E2E smoke
+per main flow); an independent test engineer runs only on risky tasks or when the orchestrator opts in.
 
 A task is moved to `risky` automatically when its diff touches a risky path (`riskyPaths` in
 `dc.config.json`).
@@ -54,11 +59,11 @@ A task is moved to `risky` automatically when its diff touches a risky path (`ri
 | `dc-requirements` | User stories and numbered acceptance criteria (`AC-n`) |
 | `dc-ux-lead` | Screens, states, copy, visual rules; owns the brand |
 | `dc-architect` | Stack, data model, contracts, implementation steps |
-| `dc-test-engineer` | Tests from spec and contracts only, before the code exists |
-| `dc-implementer` | Production code until tests, lint and typecheck pass |
+| `dc-test-engineer` | Tests from spec and contracts only, before the code exists (risky / opt-in) |
+| `dc-implementer` | Production code and its tests, until tests, lint and typecheck pass |
 | `dc-code-reviewer` | Correctness, readability, architecture fit, spec coverage |
 | `dc-security-reviewer` | Auth, injection, secrets, data exposure (risky track) |
-| `dc-qa-tester` | Clicks through every AC in a real browser with Playwright |
+| `dc-qa-tester` | Checks in a real browser the ACs no automated test already proves |
 | `dc-release` | CI, env vars, migrations, staging deploy, smoke test |
 | `dc-docs` | README, API docs and setup notes that match what was built |
 | `dc-scout`, `dc-runner`, `dc-fixer`, `dc-scribe` | Haiku workers for searching, running commands, mechanical edits and notes |
@@ -66,7 +71,9 @@ A task is moved to `risky` automatically when its diff touches a risky path (`ri
 **Enforcement.** Two hooks back the rules up:
 - `guard.mjs` (on every tool call) blocks writes to locked files, tester access to implementation
   source, shared state edited inside worktrees, and destructive commands.
-- `track-usage.mjs` (when a subagent finishes) prices each subagent's tokens and charges them to its task.
+- `track-usage.mjs` (when a subagent finishes, and when the orchestrator's turn ends) prices tokens and
+  charges them to the task. It also sweeps the whole session, so stopped agents and the orchestrator's own
+  spend are counted, and it logs only new growth per agent, so resumed agents aren't counted twice.
 
 ## Getting started
 

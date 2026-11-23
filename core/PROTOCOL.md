@@ -8,7 +8,7 @@ The orchestrator (or a lead, for Haiku workers) always gives:
 
 ```
 Task: T-0007 · <title>
-Stage: review · Round: 2 · Track: standard
+Stage: review · Round: 2 · Track: standard · Size: small (AC budget 8)
 Root: /abs/path/to/project            # tasks/, specs/, memory/, reports/ live here
 Worktree: /abs/path/.worktrees/T-0007 # where the code for this task is checked out
 Branch: task/T-0007-login-form
@@ -19,7 +19,11 @@ Instructions: <what to do>
 ```
 
 Spec, memory and report paths are relative to **Root**. Code paths are relative to **Worktree**.
-If anything you need is missing, say so in your report. Don't guess.
+Size says how much work the request deserves. Scale your output to it: a small task gets a short
+spec, a few tests and a brief report. If anything you need is missing, say so in your report. Don't guess.
+
+Put the round from your prompt in your report. If it is off, the harness corrects it and warns; a report
+written before the stage was last started is rejected as stale.
 
 ## 2. Startup
 

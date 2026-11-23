@@ -24,6 +24,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/track-usage.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

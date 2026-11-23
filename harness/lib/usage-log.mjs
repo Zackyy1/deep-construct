@@ -1,4 +1,4 @@
-// Append-only usage log (reports/usage.jsonl), one line per finished subagent. Feeds budgets and the office UI.
+// Append-only usage log (reports/usage.jsonl). One line per recorded growth of an agent's usage (see usage-record.mjs). Feeds budgets and the office UI.
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -9,7 +9,7 @@ export function appendUsage(root, entry) {
   appendFileSync(logPath(root), `${JSON.stringify(entry)}\n`);
 }
 
-function readEntries(root) {
+export function readUsageEntries(root) {
   if (!existsSync(logPath(root))) return [];
   return readFileSync(logPath(root), 'utf8').split('\n').flatMap((l) => {
     try {
@@ -41,7 +41,7 @@ function tokensByModel(entries) {
 }
 
 export function summarizeUsage(root, taskId) {
-  const entries = readEntries(root).filter((e) => !taskId || e.taskId === taskId);
+  const entries = readUsageEntries(root).filter((e) => !taskId || e.taskId === taskId);
   return {
     runs: entries.length,
     totalUsd: round(entries.reduce((s, e) => s + (e.usd ?? 0), 0)),

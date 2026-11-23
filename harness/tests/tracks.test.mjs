@@ -14,9 +14,26 @@ test('standard track drops allowed skips', () => {
   assert.equal(stages.at(-1), 'signoff');
 });
 
-test('skipping a non-skippable stage throws', () => {
+test('skipping a required stage throws', () => {
   assert.throws(() => planStages('risky', ['security']), /cannot skip/);
+  assert.throws(() => planStages('risky', ['tests']), /cannot skip/);
   assert.throws(() => planStages('trivial', ['review']), /cannot skip/);
+  assert.throws(() => planStages('standard', ['requirements']), /cannot skip/);
+});
+
+test('standard leaves out the independent tests stage unless asked for', () => {
+  assert.ok(!planStages('standard', []).includes('tests'));
+  assert.ok(planStages('standard', [], ['tests']).includes('tests'));
+});
+
+test('the orchestrator can trim a standard task to a lean pipeline', () => {
+  const stages = planStages('standard', ['ux', 'architecture', 'qa', 'release', 'docs']);
+  assert.deepEqual(stages, ['requirements', 'implementation', 'review', 'signoff']);
+});
+
+test('--with accepts only opt-in stages and skip only known stages', () => {
+  assert.throws(() => planStages('standard', [], ['qa']), /opt-in/);
+  assert.throws(() => planStages('trivial', ['ux']), /no stage/);
 });
 
 test('unknown track throws', () => {

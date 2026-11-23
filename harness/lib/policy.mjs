@@ -35,7 +35,9 @@ export function splitWorktree(rel) {
 
 // ---------- writes ----------
 
-function decideWorktreeWrite(role, inner, exists, config) {
+// engineerOwnsTests: the task has an independent tests stage, so its tests belong to the test engineer.
+// Without one, the implementer writes and maintains the tests alongside the code.
+function decideWorktreeWrite(role, inner, exists, config, engineerOwnsTests) {
   if (matchAny(inner, LOCKED)) return deny(`${inner} is locked, also inside worktrees. Only the human owner changes it.`);
   if (matchAny(inner, ROOT_ONLY)) return deny(`${inner} is shared state. Write the copy in the project root, not in a worktree.`);
   if (!WORKTREE_WRITERS.has(role)) {
@@ -45,18 +47,18 @@ function decideWorktreeWrite(role, inner, exists, config) {
   }
   const isTest = matchAny(inner, config.testPaths);
   if (TEST_ONLY_WRITERS.has(role) && !isTest) return deny(`The test engineer writes only test files (testPaths in dc.config.json). ${inner} is not one.`);
-  if (NO_EXISTING_TEST_EDITS.has(role) && isTest && exists) {
+  if (engineerOwnsTests && NO_EXISTING_TEST_EDITS.has(role) && isTest && exists) {
     return deny('Existing tests belong to the test engineer. If a test is wrong, report fail with returnTo "tests" and quote it.');
   }
   return allow();
 }
 
-export function decideWrite({ role, rel, exists, config }) {
+export function decideWrite({ role, rel, exists, config, engineerOwnsTests = true }) {
   if (isOutside(rel)) return role === ORCHESTRATOR ? allow() : deny(`${role} may not write outside the project (${rel}).`);
   if (matchAny(rel, LOCKED)) return deny(`${rel} is locked (core rules, harness, config). Only the human owner changes it.`);
   if (matchAny(rel, CLI_ONLY)) return deny(`${rel} is written only by harness/bin/task.mjs.`);
   const wt = splitWorktree(rel);
-  if (wt) return decideWorktreeWrite(role, wt.inner, exists, config);
+  if (wt) return decideWorktreeWrite(role, wt.inner, exists, config, engineerOwnsTests);
   const allowed = ROLE_WRITES[role] ?? SHARED;
   return matchAny(rel, allowed) ? allow() : deny(`${role} may not write ${rel}. Allowed: ${allowed.join(', ')}.`);
 }

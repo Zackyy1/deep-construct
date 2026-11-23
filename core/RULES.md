@@ -28,8 +28,10 @@ Rules that can improve over time belong in `playbooks/`, not here.
 
 1. Whoever wrote a diff never reviews it. That includes the orchestrator: its fixes go through
    the code reviewer like any other diff.
-2. The test engineer writes tests from the spec and contracts only, before the implementation
-   exists. It never reads implementation source.
+2. When a task runs the `tests` stage (always on risky, opt-in on standard), the test engineer writes
+   the tests from the spec and contracts only, before the implementation exists, and never reads
+   implementation source. Otherwise the implementer writes the tests with the code and the code
+   reviewer checks them.
 3. The code reviewer, security reviewer and QA tester each start with a fresh context:
    the spec, the architecture notes and the artifact under review. Nothing else.
 4. The orchestrator does not write product code. It may put a proposed fix in its review
@@ -42,14 +44,23 @@ Rules that can improve over time belong in `playbooks/`, not here.
    the task, or cancels it.
 3. Going over a task's budget is an escalation, including when the orchestrator is the one looping.
 4. The orchestrator asks the user only for **critical decisions**:
-   - brand, colours and theme on the first run
+   - brand, colours and theme on the first run (including whether a dark mode is wanted at all)
    - anything that costs money (paid services, plans, domains)
    - risk of data loss or deleting anything outside the working tree
    - legal, privacy or compliance questions
    - a scope change that contradicts the user's request
+   - at intake, product choices the request leaves open that change what gets built (for example
+     typing exact numbers as well as using sliders, extra currencies). Ask them once, together, before
+     requirements. Never build an unrequested feature to avoid asking.
    - irreversible or outward-facing actions (production deploy, publishing, sending messages)
 
    Everything else is decided by the agents and recorded in `specs/<feature>/decisions.md`.
+5. Effort is proportional to the request. A small tool gets a few acceptance criteria, a few tests and
+   the fewest stages that still catch real problems. The orchestrator sizes every task (`--size`), and
+   the requirements gate fails a spec with more criteria than that size allows (`acBudget` in
+   `dc.config.json`).
+6. Never redo verified work. A check that already passed (a test run, an AC verified in an earlier
+   round) is cited, not repeated, unless the code it covers changed since.
 
 ## 4. User TODOs never block the cycle
 

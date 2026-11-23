@@ -5,7 +5,7 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import { loadConfig } from '../../harness/lib/config.mjs';
-import { ORCHESTRATOR, decideWrite, decideRead, decideBash, decidePlaybookSize } from '../../harness/lib/policy.mjs';
+import { ORCHESTRATOR, decideWrite, decideRead, decideBash, decidePlaybookSize, splitWorktree } from '../../harness/lib/policy.mjs';
 
 const ALLOW = { allow: true };
 
@@ -29,13 +29,26 @@ function newContent(tool, input, abs) {
   return original;
 }
 
+// A worktree's tests belong to the test engineer only when its task runs the tests stage.
+// Unknown task or unreadable state: stay strict.
+function engineerOwnsTests(root, rel) {
+  const wt = splitWorktree(rel);
+  if (!wt) return true;
+  try {
+    const task = JSON.parse(readFileSync(resolve(root, 'tasks', `${wt.taskDir}.json`), 'utf8'));
+    return task.stages.includes('tests');
+  } catch {
+    return true;
+  }
+}
+
 function decide({ tool, input, role, root, cwd, config }) {
   const toRel = (p) => relative(root, resolve(cwd, p)).split(sep).join('/') || '.';
 
   if (['Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(tool)) {
     const abs = resolve(cwd, input.file_path ?? input.notebook_path ?? '');
     const rel = toRel(abs);
-    const write = decideWrite({ role, rel, exists: existsSync(abs), config });
+    const write = decideWrite({ role, rel, exists: existsSync(abs), config, engineerOwnsTests: engineerOwnsTests(root, rel) });
     if (!write.allow) return write;
     return decidePlaybookSize({ rel, content: newContent(tool, input, abs), maxLines: config.playbookMaxLines });
   }

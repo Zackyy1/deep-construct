@@ -1,18 +1,20 @@
 #!/usr/bin/env node
-// SubagentStop hook. Reads the finished subagent's transcript, prices its token usage, appends it to
-// reports/usage.jsonl and adds the cost to the task named in its prompt ("Task: T-0001").
+// Usage hook, registered for SubagentStop and Stop. Prices token usage, appends it to reports/usage.jsonl
+// and charges the task named in the agent's prompt ("Task: T-0001").
 //
-// When the hook fires, the subagent's final message is not yet in its transcript. So the hook hands
-// the work to a detached copy of itself (--worker), which waits until the transcript stops growing.
-// DC_USAGE_INLINE=1 does the work in-process instead (tests). Never blocks the session: failures
-// are logged to reports/hook-errors.log.
+// SubagentStop: records the finished subagent. Its final message is not yet in the transcript when the
+//   hook fires, so a detached copy of this script (--worker) waits until the transcript stops growing.
+// Stop (the orchestrator's turn ended): sweeps the whole session, i.e. the orchestrator's own turns and every
+//   subagent transcript, so stopped or orphaned agents are counted too.
+// Recording is idempotent (only growth since the last entry per agent is logged), so overlapping runs
+// never double-count. DC_USAGE_INLINE=1 does the work in-process (tests). Never blocks the session:
+// failures go to reports/hook-errors.log.
 import { readFileSync, existsSync, appendFileSync, mkdirSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../../harness/lib/config.mjs';
-import { parseTranscript, costUsd } from '../../harness/lib/usage.mjs';
-import { appendUsage } from '../../harness/lib/usage-log.mjs';
+import { recordAgentUsage, sessionTranscripts } from '../../harness/lib/usage-record.mjs';
 import { readTask, writeTask, withTaskLock } from '../../harness/lib/store.mjs';
 import { addSpend } from '../../harness/lib/transitions.mjs';
 
@@ -34,24 +36,34 @@ function waitUntilStable(path) {
   }
 }
 
-function chargeTask(root, taskId, usd, at) {
-  if (!existsSync(join(root, 'tasks', `${taskId}.json`)) || usd <= 0) return;
+function chargeTask(root, entry) {
+  const { taskId, usd, at } = entry;
+  if (!taskId || usd <= 0 || !existsSync(join(root, 'tasks', `${taskId}.json`))) return;
   withTaskLock(root, taskId, () => {
     const task = readTask(root, taskId);
     if (SPENDABLE.has(task.status)) writeTask(root, addSpend(task, { usd, at }));
   });
 }
 
-function record(root, input) {
-  const transcriptPath = input.agent_transcript_path;
-  if (!transcriptPath || !existsSync(transcriptPath)) return;
-  waitUntilStable(transcriptPath);
+function recordOne(root, config, { path, agentId, agentType, forceTaskId }) {
+  if (!path || !existsSync(path)) return;
+  const entry = recordAgentUsage(root, {
+    agentId, agentType, forceTaskId, transcript: readFileSync(path, 'utf8'),
+    prices: config.pricesUsdPerMTok, at: new Date().toISOString(),
+  });
+  if (entry) chargeTask(root, entry);
+}
+
+function work(root, input) {
   const config = loadConfig(root);
-  const { taskId, byModel } = parseTranscript(readFileSync(transcriptPath, 'utf8'));
-  const { usd, unpriced } = costUsd(byModel, config.pricesUsdPerMTok);
-  const at = new Date().toISOString();
-  appendUsage(root, { at, agentId: input.agent_id, agentType: input.agent_type, taskId, usd, unpriced, byModel });
-  if (taskId) chargeTask(root, taskId, usd, at);
+  if (input.hook_event_name === 'Stop') {
+    for (const t of sessionTranscripts(input.transcript_path)) recordOne(root, config, t);
+    return;
+  }
+  const path = input.agent_transcript_path;
+  if (!path || !existsSync(path)) return;
+  waitUntilStable(path);
+  recordOne(root, config, { path, agentId: input.agent_id ?? path, agentType: input.agent_type });
 }
 
 function handOff(input) {
@@ -64,11 +76,11 @@ function handOff(input) {
 
 function main(root) {
   if (process.argv[2] === '--worker') {
-    record(root, JSON.parse(Buffer.from(process.argv[3], 'base64').toString('utf8')));
+    work(root, JSON.parse(Buffer.from(process.argv[3], 'base64').toString('utf8')));
     return;
   }
   const input = JSON.parse(readFileSync(0, 'utf8'));
-  if (process.env.DC_USAGE_INLINE === '1') record(root, input);
+  if (process.env.DC_USAGE_INLINE === '1') work(root, input);
   else handOff(input);
 }
 

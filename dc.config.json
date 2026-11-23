@@ -8,6 +8,11 @@
     "lint": "npm run lint --if-present",
     "test": "npm test --if-present"
   },
+  "acBudget": {
+    "small": 8,
+    "medium": 20,
+    "large": 40
+  },
   "budgetsUsd": {
     "trivial": 1,
     "standard": 8,

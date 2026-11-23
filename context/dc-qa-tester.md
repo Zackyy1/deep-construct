@@ -10,7 +10,8 @@ Always:
 For this role:
 - `specs/<feature>/requirements.md`
 - `specs/<feature>/ux.md`
-- `specs/<feature>/architecture.md` (Test seams: how to start the app, the seeded test user)
+- `specs/<feature>/architecture.md` if present (Test seams), otherwise the README: how to start the app
+- the earlier QA report named in your prompt, on a re-check round
 - `memory/caveats.md`
 
 Not for you: implementation source. Judge the app by what a user sees.

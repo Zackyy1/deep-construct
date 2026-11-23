@@ -8,6 +8,7 @@ const DEFAULTS = Object.freeze({
   checkTimeoutMs: 600000,
   checks: {},
   budgetsUsd: { trivial: 1, standard: 8, risky: 20 },
+  acBudget: { small: 8, medium: 20, large: 40 },
   riskyPaths: [],
   userTodoMarker: 'USER_TODO #',
   markerScanDirs: ['src', 'app', 'lib'],

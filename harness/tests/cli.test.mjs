@@ -74,12 +74,58 @@ test('failing checks fail the gate with exit 1, and repeated failure escalates w
   assert.equal(second.json.task.status, 'escalated');
 });
 
-test('stale or invalid reports are rejected with exit 2 and change nothing', () => {
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+test('a report written before the stage was last started is stale and rejected', () => {
   const root = setupRepo();
   cli(root, ['create', '--title', 'X', '--track', 'trivial']);
-  const stale = cli(root, ['submit', 'T-0001', '--report', writeReport(root, 's.json', implReport(5))]);
+  const path = writeReport(root, 's.json', implReport(1));
+  pause(30);
+  cli(root, ['start', 'T-0001', '--owner', 'dc-implementer']);
+  const stale = cli(root, ['submit', 'T-0001', '--report', path]);
   assert.equal(stale.code, 2);
-  assert.match(stale.err, /round/);
+  assert.match(stale.err, /stale/);
+});
+
+test('a fresh report with the wrong round is accepted and its round corrected', () => {
+  const root = setupRepo();
+  cli(root, ['create', '--title', 'X', '--track', 'trivial']);
+  const r = cli(root, ['submit', 'T-0001', '--report', writeReport(root, 'w.json', implReport(5))]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.json.warnings[0], /recorded as round 1/);
+  const archived = JSON.parse(readFileSync(join(root, r.json.task.reports[0]), 'utf8'));
+  assert.equal(archived.report.round, 1);
+});
+
+test('starting a task that is already in progress needs --takeover', () => {
+  const root = setupRepo();
+  cli(root, ['create', '--title', 'X', '--track', 'trivial']);
+  assert.equal(cli(root, ['start', 'T-0001', '--owner', 'dc-implementer']).code, 0);
+  const again = cli(root, ['start', 'T-0001', '--owner', 'dc-implementer']);
+  assert.equal(again.code, 2);
+  assert.match(again.err, /already in progress/);
+  const taken = cli(root, ['start', 'T-0001', '--owner', 'dc-implementer', '--takeover']);
+  assert.equal(taken.code, 0, taken.err);
+  assert.equal(taken.json.history.at(-1).event, 'taken-over');
+});
+
+test('standard tasks need a size, and requirements over the AC budget fail the gate', () => {
+  const root = setupRepo();
+  assert.match(cli(root, ['create', '--title', 'X', '--track', 'standard']).err, /--size is required/);
+  const created = cli(root, ['create', '--title', 'X', '--track', 'standard', '--size', 'small', '--spec', 'specs/f']);
+  assert.equal(created.code, 0, created.err);
+  mkdirSync(join(root, 'specs/f'), { recursive: true });
+  const acs = Array.from({ length: 9 }, (_, i) => `- AC-${i + 1}: x`).join('\n');
+  writeFileSync(join(root, 'specs/f/requirements.md'), acs);
+  const report = { taskId: 'T-0001', stage: 'requirements', role: 'x', round: 1, verdict: 'pass', summary: 's' };
+  const r = cli(root, ['submit', 'T-0001', '--report', writeReport(root, 'r.json', report)]);
+  assert.equal(r.code, 1);
+  assert.match(r.json.gate.reasons[0], /budget of 8/);
+});
+
+test('invalid reports are rejected with exit 2 and change nothing', () => {
+  const root = setupRepo();
+  cli(root, ['create', '--title', 'X', '--track', 'trivial']);
   const bad = cli(root, ['submit', 'T-0001', '--report', writeReport(root, 'b.json', { taskId: 'T-0001' })]);
   assert.equal(bad.code, 2);
   assert.equal(cli(root, ['show', 'T-0001']).json.round, 1);
@@ -112,7 +158,7 @@ test('create --git with an explicit --branch is rejected', () => {
 test('the tests stage hides implementation files in the worktree and restores them afterwards', () => {
   const root = setupRepo();
   sh(root, 'mkdir -p src/types tests && echo impl > src/app.ts && echo "export type U = {}" > src/types/u.ts && echo t > tests/a.test.ts && git add . && git -c user.email=t@t -c user.name=t commit -qm app');
-  const created = cli(root, ['create', '--title', 'Feature', '--track', 'standard', '--skip', 'ux,release,docs', '--spec', 'specs/f', '--git']);
+  const created = cli(root, ['create', '--title', 'Feature', '--track', 'standard', '--size', 'medium', '--with', 'tests', '--skip', 'ux,release,docs', '--spec', 'specs/f', '--git']);
   assert.equal(created.code, 0, created.err);
   mkdirSync(join(root, 'specs/f'), { recursive: true });
   writeFileSync(join(root, 'specs/f/requirements.md'), '- AC-1: works');

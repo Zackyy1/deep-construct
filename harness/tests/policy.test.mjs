@@ -59,6 +59,11 @@ test('implementers cannot edit existing tests but may add new ones', () => {
   assert.equal(w('dc-implementer', '.worktrees/T-0001/src/helper.test.ts', false).allow, true);
 });
 
+test('without a tests stage the implementer owns the tests and may edit them', () => {
+  const r = decideWrite({ role: 'dc-implementer', rel: '.worktrees/T-0001/src/a.test.ts', exists: true, config, engineerOwnsTests: false });
+  assert.equal(r.allow, true);
+});
+
 test('the test engineer writes only test files', () => {
   assert.equal(w('dc-test-engineer', '.worktrees/T-0001/tests/login.spec.ts').allow, true);
   assert.equal(w('dc-test-engineer', '.worktrees/T-0001/src/app.ts').allow, false);

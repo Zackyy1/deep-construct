@@ -37,7 +37,14 @@ const STAGE_CHECKS = {
     return missingCriteria(acIds, r.criteriaCovered).map((id) => `${id} has no test`);
   },
 
-  requirements: (_r, { acIds = [] }) => (acIds.length ? [] : ['requirements.md has no acceptance criteria (AC-n)']),
+  requirements: (_r, { acIds = [], acBudget }) => {
+    if (acIds.length === 0) return ['requirements.md has no acceptance criteria (AC-n)'];
+    if (acBudget && acIds.length > acBudget) {
+      return [`${acIds.length} acceptance criteria is over this task's budget of ${acBudget}. Keep what the user asked for `
+        + 'and what it needs to work; move the rest to Open questions or merge criteria.'];
+    }
+    return [];
+  },
 
   release: (_r, { markerHits = [] }) => markerHits.map((h) => `unresolved marker at ${h.file}:${h.line}: ${h.text}`),
 };

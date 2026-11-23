@@ -107,3 +107,44 @@ test('track-usage hands off to a background worker that waits for the transcript
   const logged = JSON.parse(readFileSync(join(root, 'reports/usage.jsonl'), 'utf8'));
   assert.equal(logged.usd, 2, 'both messages counted, including the one written after the hook fired');
 });
+
+const userLine = (text) => JSON.stringify({ type: 'user', message: { content: text } });
+const sonnet = (id, output) => JSON.stringify({ type: 'assistant', message: { id, model: 'claude-sonnet-5-5', usage: { input_tokens: 0, output_tokens: output } } });
+const usageLog = (root) => readFileSync(join(root, 'reports/usage.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('track-usage logs only the growth when the same agent stops again after a resume', () => {
+  const root = project();
+  const transcript = join(root, 'agent.jsonl');
+  writeFileSync(transcript, [userLine('Task: T-0009 · x'), sonnet('m1', 100000)].join('\n'));
+  const stop = { hook_event_name: 'SubagentStop', agent_id: 'a1', agent_type: 'dc-code-reviewer', agent_transcript_path: transcript };
+  run('track-usage.mjs', root, stop, { DC_USAGE_INLINE: '1' });
+  appendFileSync(transcript, `\n${sonnet('m2', 100000)}`);
+  run('track-usage.mjs', root, stop, { DC_USAGE_INLINE: '1' });
+  run('track-usage.mjs', root, stop, { DC_USAGE_INLINE: '1' });
+  const entries = usageLog(root);
+  assert.equal(entries.length, 2, 'the third stop added nothing');
+  assert.deepEqual(entries.map((e) => e.usd), [1, 1]);
+});
+
+test('the Stop sweep records the orchestrator and agents that never reported, without double counting', () => {
+  const root = project();
+  const sessionDir = join(root, 'sessions');
+  mkdirSync(join(sessionDir, 's1', 'subagents'), { recursive: true });
+  const main = join(sessionDir, 's1.jsonl');
+  writeFileSync(main, [userLine('build me a calculator. Task: T-0001 in text should not attribute'), sonnet('o1', 100000)].join('\n'));
+  writeFileSync(join(sessionDir, 's1/subagents/agent-orphan.jsonl'), [userLine('Task: T-0002 · x'), sonnet('s1', 200000)].join('\n'));
+  writeFileSync(join(sessionDir, 's1/subagents/agent-orphan.meta.json'), JSON.stringify({ agentType: 'dc-test-engineer' }));
+
+  run('track-usage.mjs', root, { hook_event_name: 'Stop', session_id: 's1', transcript_path: main }, { DC_USAGE_INLINE: '1' });
+  run('track-usage.mjs', root, { hook_event_name: 'Stop', session_id: 's1', transcript_path: main }, { DC_USAGE_INLINE: '1' });
+
+  const entries = usageLog(root);
+  assert.equal(entries.length, 2);
+  const orchestrator = entries.find((e) => e.agentType === 'orchestrator');
+  assert.equal(orchestrator.taskId, null, 'orchestrator spend is not charged to a task');
+  assert.equal(orchestrator.agentId, 'orchestrator:s1');
+  const orphan = entries.find((e) => e.agentId === 'orphan');
+  assert.equal(orphan.agentType, 'dc-test-engineer');
+  assert.equal(orphan.taskId, 'T-0002');
+  assert.equal(orphan.usd, 2);
+});

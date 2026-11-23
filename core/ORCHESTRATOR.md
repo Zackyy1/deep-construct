@@ -14,7 +14,7 @@ keep memory and playbooks healthy, and decide when to stop.
 | requirements | `dc-requirements` | security | `dc-security-reviewer` |
 | ux | `dc-ux-lead` | qa | `dc-qa-tester` |
 | architecture | `dc-architect` | release | `dc-release` |
-| tests | `dc-test-engineer` | docs | `dc-docs` |
+| tests (opt-in) | `dc-test-engineer` | docs | `dc-docs` |
 | implementation | `dc-implementer` | signoff | you |
 | review | `dc-code-reviewer` | | |
 
@@ -25,16 +25,31 @@ Exit codes: `0` pass, `1` gate failed, `2` invalid input, `3` escalated.
 1. `harness/node_modules` missing → `npm --prefix harness install`.
 2. Not a git repo, or `main` has no commits → `git init -b main`, commit the harness files (`chore: add deep-construct harness`).
 3. `memory/brand.md` says `Status: not set` and the product has a UI → run `dc-ux-lead` in **brand mode**
-   (not a task stage). Show its directions to the user with AskUserQuestion, with the recommended one first.
-   Write the answer into `memory/brand.md` and set `Status: set`. This is one of the few times you ask the user.
+   (not a task stage). Ask the user in **one** AskUserQuestion call: the direction (recommended first),
+   whether they want a dark mode (default: no, light only), and the open product choices from §2.2.
+   Write the answers into `memory/brand.md` (set `Status: set`) and the spec's `decisions.md`.
 
 ## 1. Resume
 Run `task.mjs list`. Continue any task that is `pending` or `in_progress` before taking new work.
 Tasks, specs and archived reports are the truth. Don't rely on what you remember from the conversation.
 
 ## 2. Intake: turn the request into tasks
+Spend in proportion to the request. Every stage you add costs a full agent run, and every acceptance
+criterion multiplies into tests and QA. A small tool built well by a lean team is the goal.
+
 1. Split the request into features that can each be reviewed and shipped alone.
-2. Pick a track for each:
+2. **Ask once, up front.** List the product choices the request leaves open that change what gets built
+   (dark mode, typed numbers as well as sliders, currencies, accounts). Ask them in one AskUserQuestion,
+   together with any first-run brand question, each with a recommended default. Don't ask about
+   anything you can sensibly default; don't build extras to avoid asking.
+3. **Size** each feature. The size sets the AC budget (`acBudget`) that the requirements gate enforces:
+
+   | Size | Use when | ACs |
+   |---|---|---|
+   | `small` | one screen or tool, a handful of behaviours (a calculator, a form, a widget) | ≤ 8 |
+   | `medium` | several screens or flows, some persistence or an API | ≤ 20 |
+   | `large` | a subsystem; consider splitting it into medium tasks first | ≤ 40 |
+4. Pick a track for each:
 
    | Track | Use when |
    |---|---|
@@ -44,13 +59,27 @@ Tasks, specs and archived reports are the truth. Don't rely on what you remember
 
    When in doubt, choose the stricter track. `task.mjs` upgrades to risky on its own when the diff
    touches a risky path. Don't fight an upgrade.
-3. Skips: `--skip ux` for features with no UI. `--skip release` unless something needs deploying
-   or CI/env/migration work. `--skip docs` only when nothing user- or developer-facing changed.
-4. Create it: `task.mjs create --title "<title>" --track <track> [--skip ...] --spec specs/<feature-slug> --git`.
-   This makes the branch `task/<id>-<slug>` and the worktree `.worktrees/<id>`.
+5. **Choose the stages.** The track only sets the floor (trivial: implementation, review, signoff;
+   standard adds requirements; risky adds architecture, tests and security). Add the rest only when they pay off:
+
+   | Stage | Include when | Skip when |
+   |---|---|---|
+   | `ux` | new screens or non-obvious interactions | no UI, or one simple screen the requirements can describe |
+   | `architecture` | new data model, API, or more than a few files | a small app in a known stack: the implementer decides |
+   | `tests` (`--with tests`) | risky logic worth an independent test author | default: the implementer writes the tests |
+   | `qa` | multi-step flows, or UI the implementer's E2E smoke doesn't cover | a small app whose smoke test covers the main flow |
+   | `release` | something to deploy, CI, env or migrations | everything else |
+   | `docs` | user- or developer-facing behaviour changed beyond the README | the implementer's README update is enough |
+
+   Example: "a salary calculator with sliders" is standard and small. Run requirements, one short `ux` pass
+   if the look matters, then implementation → review → signoff: `--skip architecture,qa,release,docs`.
+6. Create it: `task.mjs create --title "<title>" --track <track> --size <size> [--skip ...] [--with tests] --spec specs/<feature-slug> --git`.
+   This makes the branch `task/<id>-<slug>` and the worktree `.worktrees/<id>`. Put the size and its AC
+   budget in every prompt (`Size: small (AC budget 8)`).
 
 ## 3. Running a stage
-1. `task.mjs start <id> --owner <agent>`.
+1. `task.mjs start <id> --owner <agent>`. It refuses if the task is already in progress, because an agent
+   may still be running on it (see **Interrupted runs** below).
 2. Start the agent with the task prompt from `core/PROTOCOL.md` §1. Put the absolute Root and Worktree paths in it.
    The report path is `reports/inbox/<id>-<stage>-r<round>.json`.
    On a rework round, paste the previous gate's `reasons` **verbatim** from the archived report.
@@ -58,11 +87,19 @@ Tasks, specs and archived reports are the truth. Don't rely on what you remember
 4. `task.mjs submit <id> --report <path>` and act on the exit code:
    - `0`: next stage. Read the archived gate result anyway. A pass with odd findings deserves a look.
    - `1`: rework. The task is already moved to the right stage. Start that stage's agent with the reasons.
-   - `2`: the input was rejected. Read the message. Usually the report is broken (schema, wrong round):
+   - `2`: the input was rejected. Read the message. Usually the report is broken (schema) or stale:
      send it back to the same agent to fix the report; this doesn't use up a round. If the message says
      the task is escalated, the usage hook pushed it over budget while the agent worked: go to §6.
    - `3`: escalated. Go to §6.
 5. If the gate result says `contradicted: true`, note it. Two of those for the same agent and cause → playbook rule (§8).
+
+**Interrupted runs:** an interrupted foreground Agent call does **not** stop the subagent; it keeps
+running and writing. Before starting any agent again for that task, run `ListAgents`, `TaskStop` every
+agent still working on it, then check the worktree. Only then `start --takeover`. Never run two agents on
+one task at once, and never tell the user nothing is running without checking `ListAgents`.
+
+**Don't repeat work:** a rework round fixes only what failed. Tell re-check agents (review, QA) exactly
+which findings or ACs to verify, and that the rest already passed in `<archived report>`.
 
 **Parallel work:** run different tasks at the same time when the architect's file lists don't overlap.
 Keep at most 3 tasks active at once. Stages within one task always run in order.
@@ -72,6 +109,8 @@ with only their context list. Never pass them the implementer's reasoning or ear
 
 **Budget:** every finished subagent's token usage is priced and charged to the task named on the `Task:`
 line of its prompt, so always include that line, also in prompts leads give to Haiku workers.
+Your own turns are logged too (agent `orchestrator`, not charged to a task): you are the most expensive
+model here, so read gate results with `grep`/`tail`, not whole files, and don't redo an agent's checks.
 `task.mjs usage [<id>]` shows spending by task, agent and model.
 
 **Guard denials:** `.claude/hooks/guard.mjs` blocks calls that break the rules, for you as well. A denial
@@ -103,7 +142,8 @@ Never resolve the same escalation twice the same way. If the first fix didn't wo
 
 ## 7. Sign-off
 For the `signoff` stage, check the task against the spec yourself:
-- every AC passed in the QA report (trivial track: review passed and checks green)
+- every AC passed in the QA report or, with no QA stage, is covered by a passing test or the review
+  (trivial track: review passed and checks green)
 - risky track: the security review passed
 - no unresolved high/critical findings; no `USER_TODO #` markers unless release was skipped *and* the mock is documented
 - the result still fits the product vision, the brand and accessibility, with no obvious security or quality debt

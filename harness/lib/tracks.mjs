@@ -1,4 +1,5 @@
-// Pipeline definitions: which stages each track runs, in what order.
+// Pipeline definitions: which stages each track can run, which it must run, and which are off unless asked for.
+// The orchestrator picks the stages per task (--skip / --with); the track only sets the floor.
 
 export const STAGES = Object.freeze([
   'requirements', 'ux', 'architecture', 'tests', 'implementation',
@@ -7,13 +8,26 @@ export const STAGES = Object.freeze([
 
 export const TRACK_ORDER = Object.freeze(['trivial', 'standard', 'risky']);
 
+export const SIZES = Object.freeze(['small', 'medium', 'large']);
+
+// stages: every stage the track may run, in order. required: never skippable.
+// optIn: off unless named in --with (an independent test engineer costs a full extra agent run).
 export const TRACKS = Object.freeze({
-  trivial: Object.freeze({ stages: ['implementation', 'review', 'signoff'], skippable: [] }),
+  trivial: Object.freeze({
+    stages: ['implementation', 'review', 'signoff'],
+    required: ['implementation', 'review', 'signoff'],
+    optIn: [],
+  }),
   standard: Object.freeze({
     stages: ['requirements', 'ux', 'architecture', 'tests', 'implementation', 'review', 'qa', 'release', 'docs', 'signoff'],
-    skippable: ['ux', 'release', 'docs'],
+    required: ['requirements', 'implementation', 'review', 'signoff'],
+    optIn: ['tests'],
   }),
-  risky: Object.freeze({ stages: [...STAGES], skippable: ['ux'] }),
+  risky: Object.freeze({
+    stages: [...STAGES],
+    required: ['requirements', 'architecture', 'tests', 'implementation', 'review', 'security', 'signoff'],
+    optIn: [],
+  }),
 });
 
 const RETURNS_TO_IMPLEMENTATION = new Set(['review', 'security', 'qa', 'signoff']);
@@ -24,11 +38,21 @@ function trackDef(track) {
   return def;
 }
 
-export function planStages(track, skip = []) {
+export function skippableStages(track) {
   const def = trackDef(track);
-  const bad = skip.filter((s) => !def.skippable.includes(s));
-  if (bad.length) throw new Error(`track ${track} cannot skip: ${bad.join(', ')}`);
-  return def.stages.filter((s) => !skip.includes(s));
+  return def.stages.filter((s) => !def.required.includes(s));
+}
+
+export function planStages(track, skip = [], withStages = []) {
+  const def = trackDef(track);
+  const required = skip.filter((s) => def.required.includes(s));
+  if (required.length) throw new Error(`track ${track} cannot skip: ${required.join(', ')}`);
+  const unknown = [...skip, ...withStages].filter((s) => !def.stages.includes(s));
+  if (unknown.length) throw new Error(`track ${track} has no stage: ${unknown.join(', ')}`);
+  const badWith = withStages.filter((s) => !def.optIn.includes(s));
+  if (badWith.length) throw new Error(`--with only adds opt-in stages (${def.optIn.join(', ') || 'none on this track'}): ${badWith.join(', ')}`);
+  const off = new Set([...skip, ...def.optIn.filter((s) => !withStages.includes(s))]);
+  return def.stages.filter((s) => !off.has(s));
 }
 
 export function upgradeStages(task, newTrack) {
@@ -38,7 +62,7 @@ export function upgradeStages(task, newTrack) {
   }
   const done = task.stages.slice(0, task.stages.indexOf(task.stage) + 1);
   const currentOrder = STAGES.indexOf(task.stage);
-  const keptSkips = task.skip.filter((s) => def.skippable.includes(s));
+  const keptSkips = task.skip.filter((s) => !def.required.includes(s));
   const upcoming = def.stages.filter((s) => STAGES.indexOf(s) > currentOrder && !keptSkips.includes(s));
   return [...done, ...upcoming];
 }

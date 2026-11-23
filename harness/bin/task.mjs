@@ -14,10 +14,11 @@ import { submitReport } from '../lib/submit.mjs';
 const EXIT = Object.freeze({ OK: 0, GATE_FAILED: 1, INVALID: 2, ESCALATED: 3 });
 
 const USAGE = `usage: dc-task <command> [args]
-  create  --title <t> --track trivial|standard|risky [--skip ux,docs] [--spec specs/<feature>] [--git | --branch b --worktree path]
+  create  --title <t> --track trivial|standard|risky --size small|medium|large [--skip ux,qa] [--with tests]
+          [--spec specs/<feature>] [--git | --branch b --worktree path]
   show    <id>
   list
-  start   <id> --owner <role>
+  start   <id> --owner <role> [--takeover]
   submit  <id> --report <path>
   upgrade <id> --track standard|risky --reason <why>
   spend   <id> --usd <amount>
@@ -29,7 +30,8 @@ const OPTIONS = {
   title: { type: 'string' }, track: { type: 'string' }, skip: { type: 'string' }, spec: { type: 'string' },
   branch: { type: 'string' }, worktree: { type: 'string' }, owner: { type: 'string' }, report: { type: 'string' },
   reason: { type: 'string' }, usd: { type: 'string' }, to: { type: 'string' }, note: { type: 'string' },
-  budget: { type: 'string' }, git: { type: 'boolean' },
+  budget: { type: 'string' }, git: { type: 'boolean' }, size: { type: 'string' }, with: { type: 'string' },
+  takeover: { type: 'boolean' },
 };
 
 function required(values, ...names) {
@@ -42,6 +44,8 @@ function toNumber(value, name) {
   if (!Number.isFinite(n) || n < 0) throw new Error(`--${name} must be a non-negative number`);
   return n;
 }
+
+const list = (value) => (value ? value.split(',').map((s) => s.trim()).filter(Boolean) : []);
 
 const statusExit = (task) => (task.status === 'escalated' ? EXIT.ESCALATED : EXIT.OK);
 
@@ -58,7 +62,7 @@ const COMMANDS = {
     if (v.git && (v.branch || v.worktree)) throw new Error('use either --git or --branch/--worktree, not both');
     const id = nextTaskId(root);
     const draft = createTask({
-      id, title: v.title, track: v.track, skip: v.skip ? v.skip.split(',') : [],
+      id, title: v.title, track: v.track, size: v.size, skip: list(v.skip), withStages: list(v.with),
       spec: v.spec ?? null, branch: v.branch ?? null, worktree: v.worktree ?? null,
       budgetUsd: config.budgetsUsd[v.track], at,
     });
@@ -75,7 +79,7 @@ const COMMANDS = {
     return updateTask(root, config, id, (t) => {
       // Isolation is mandatory for the tests stage: fail the start rather than expose the implementation.
       if (t.stage === 'tests' && t.worktree) applyTestView(resolve(root, t.worktree), config);
-      return startTask(t, { owner: v.owner, at });
+      return startTask(t, { owner: v.owner, takeover: Boolean(v.takeover), at });
     });
   },
   submit(root, config, id, v, at) {
@@ -83,7 +87,8 @@ const COMMANDS = {
     const result = withTaskLock(root, id, () => submitReport(root, config, { id, reportPath: resolve(v.report), at }));
     const warning = syncTestView(root, config, result.task);
     const code = result.task.status === 'escalated' ? EXIT.ESCALATED : result.gate.verdict === 'pass' ? EXIT.OK : EXIT.GATE_FAILED;
-    return { output: warning ? { ...result, warnings: [warning] } : result, code };
+    const warnings = [...(result.warnings ?? []), ...(warning ? [warning] : [])];
+    return { output: warnings.length ? { ...result, warnings } : result, code };
   },
   upgrade(root, config, id, v, at) {
     required(v, 'track', 'reason');

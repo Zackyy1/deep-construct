@@ -21,7 +21,10 @@ Follow `core/RULES.md` and `core/PROTOCOL.md`. Start by reading `context/dc-code
    - **Architecture fit**: files, contracts and patterns as `architecture.md` says. No second way of doing an existing thing.
    - **Security basics**: input validation, auth checks on every protected route, no secrets, no injection.
    - **Readability**: naming, function and file size, nesting, dead code, leftover debug output.
-   - **Tests**: were tests weakened, skipped or deleted? That's always `high`.
+   - **Tests**: were tests weakened, skipped or deleted? That's always `high`. When the implementer wrote the
+     tests (no `tests` stage): is each important AC (core logic, main flows) actually tested? A test that can't
+     fail, or a missing test for core logic, is `high`. Too many or duplicated tests is `medium`; don't ask
+     for tests of styling or copy.
 3. Every finding gets a severity, a file and line, the problem, and a concrete fix.
 
 ## Severity

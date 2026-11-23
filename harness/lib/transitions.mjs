@@ -1,5 +1,5 @@
 // Pure task state transitions. Every function returns a new task; inputs are never mutated.
-import { planStages, upgradeStages, nextStage, defaultReturnStage } from './tracks.mjs';
+import { planStages, upgradeStages, nextStage, defaultReturnStage, SIZES } from './tracks.mjs';
 
 const ACTIVE = new Set(['pending', 'in_progress', 'escalated']);
 
@@ -20,20 +20,31 @@ function escalate(task, reason, at) {
   return evolve(task, { status: 'escalated', escalation: { reason, at } }, { event: 'escalated', note: reason }, at);
 }
 
-export function createTask({ id, title, track, skip = [], spec = null, branch = null, worktree = null, budgetUsd, at }) {
-  const stages = planStages(track, skip);
+function checkSize(track, size) {
+  const resolved = size ?? (track === 'trivial' ? 'small' : null);
+  if (!resolved) throw new Error(`--size is required for ${track} tasks (${SIZES.join(', ')}): it sets the AC budget`);
+  if (!SIZES.includes(resolved)) throw new Error(`unknown size "${resolved}" (use ${SIZES.join(', ')})`);
+  return resolved;
+}
+
+export function createTask({ id, title, track, size, skip = [], withStages = [], spec = null, branch = null, worktree = null, budgetUsd, at }) {
+  const stages = planStages(track, skip, withStages);
   return {
-    id, title, track, skip: [...skip], stages, stage: stages[0], status: 'pending', owner: null, round: 1,
+    id, title, track, size: checkSize(track, size), skip: [...skip], stages, stage: stages[0], status: 'pending', owner: null, round: 1,
     spec, branch, worktree, budget: { limitUsd: budgetUsd, spentUsd: 0 }, reports: [], escalation: null,
     createdAt: at, updatedAt: at,
     history: [{ at, event: 'created', stage: stages[0], note: `track=${track}` }],
   };
 }
 
-export function startTask(task, { owner, at }) {
+export function startTask(task, { owner, takeover = false, at }) {
   assertActive(task);
   if (task.status === 'escalated') throw new Error(`task ${task.id} is escalated; resolve it first`);
-  return evolve(task, { status: 'in_progress', owner }, { event: 'started', by: owner }, at);
+  if (task.status === 'in_progress' && !takeover) {
+    throw new Error(`task ${task.id} is already in progress (owner: ${task.owner}). Check ListAgents and stop that agent `
+      + 'first (TaskStop), or pass --takeover if you are sure nothing is still running on it.');
+  }
+  return evolve(task, { status: 'in_progress', owner }, { event: takeover && task.status === 'in_progress' ? 'taken-over' : 'started', by: owner }, at);
 }
 
 function resolveReturn(task, stage, returnTo) {
