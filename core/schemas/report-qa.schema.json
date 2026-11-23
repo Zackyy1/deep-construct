@@ -1,0 +1,26 @@
+{
+  "$id": "report-qa.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QA/E2E report. Every acceptance criterion in the spec must be listed with status pass.",
+  "allOf": [
+    { "$ref": "common.schema.json#/definitions/reportBase" },
+    {
+      "required": ["criteria"],
+      "properties": {
+        "stage": { "const": "qa" },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "status", "evidence"],
+            "properties": {
+              "id": { "$ref": "common.schema.json#/definitions/acId" },
+              "status": { "enum": ["pass", "fail", "blocked"] },
+              "evidence": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

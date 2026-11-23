@@ -1,0 +1,42 @@
+{
+  "$id": "common.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Shared definitions for task state and handoff reports",
+  "definitions": {
+    "taskId": { "type": "string", "pattern": "^T-\\d{4,}$" },
+    "stage": {
+      "enum": ["requirements", "ux", "architecture", "tests", "implementation",
+               "review", "security", "qa", "release", "docs", "signoff"]
+    },
+    "track": { "enum": ["trivial", "standard", "risky"] },
+    "acId": { "type": "string", "pattern": "^AC-\\d+$" },
+    "severity": { "enum": ["critical", "high", "medium", "low"] },
+    "finding": {
+      "type": "object",
+      "required": ["severity", "issue"],
+      "properties": {
+        "severity": { "$ref": "#/definitions/severity" },
+        "category": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "issue": { "type": "string", "minLength": 1 },
+        "fix": { "type": "string" }
+      }
+    },
+    "reportBase": {
+      "type": "object",
+      "required": ["taskId", "stage", "role", "round", "verdict", "summary"],
+      "properties": {
+        "taskId": { "$ref": "#/definitions/taskId" },
+        "stage": { "$ref": "#/definitions/stage" },
+        "role": { "type": "string", "minLength": 1 },
+        "round": { "type": "integer", "minimum": 1 },
+        "verdict": { "enum": ["pass", "fail"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "returnTo": { "$ref": "#/definitions/stage" },
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "askOrchestrator": { "type": "string", "description": "Optional request for an orchestrator second opinion or code review" }
+      }
+    }
+  }
+}

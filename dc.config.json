@@ -1,0 +1,104 @@
+{
+  "appDir": ".",
+  "baseBranch": "main",
+  "maxRounds": 3,
+  "checkTimeoutMs": 600000,
+  "checks": {
+    "typecheck": "npm run typecheck --if-present",
+    "lint": "npm run lint --if-present",
+    "test": "npm test --if-present"
+  },
+  "budgetsUsd": {
+    "trivial": 1,
+    "standard": 8,
+    "risky": 20
+  },
+  "riskyPaths": [
+    "**/auth/**",
+    "auth/**",
+    "**/payments/**",
+    "payments/**",
+    "**/middleware.*",
+    "middleware.*",
+    "**/migrations/**",
+    "migrations/**",
+    ".env*",
+    "**/.env*",
+    ".github/workflows/**",
+    "**/infra/**",
+    "infra/**",
+    "**/*.tf",
+    "Dockerfile",
+    "**/Dockerfile",
+    "dc.config.json",
+    "core/**",
+    ".claude/**"
+  ],
+  "userTodoMarker": "USER_TODO #",
+  "markerScanDirs": [
+    "src",
+    "app",
+    "lib",
+    "server",
+    "pages",
+    "components",
+    "packages"
+  ],
+  "playbookMaxLines": 120,
+  "testPaths": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__tests__/**",
+    "tests/**",
+    "**/tests/**",
+    "e2e/**",
+    "**/e2e/**"
+  ],
+  "contractPaths": [
+    "**/contracts/**",
+    "**/types/**",
+    "**/*.d.ts",
+    "**/schemas/**"
+  ],
+  "testSupportPaths": [
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "tsconfig*.json",
+    "*.config.*",
+    ".gitignore",
+    ".env.example"
+  ],
+  "_pricesNote": "USD per million tokens. Input/output and most cache-read prices from Anthropic's published table (2026-11). Cache-write prices assume 1.25x (5m) and 2x (1h) input; Haiku cache read assumes 0.1x input. Under a Claude subscription these are API-equivalent estimates, not your bill.",
+  "pricesUsdPerMTok": {
+    "claude-opus-5-5": {
+      "input": 4,
+      "output": 20,
+      "cacheWrite5m": 5,
+      "cacheWrite1h": 8,
+      "cacheRead": 0.2
+    },
+    "claude-sonnet-5-5": {
+      "input": 2,
+      "output": 10,
+      "cacheWrite5m": 2.5,
+      "cacheWrite1h": 4,
+      "cacheRead": 0.1
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cacheWrite5m": 0.125,
+      "cacheWrite1h": 0.2,
+      "cacheRead": 0.01
+    },
+    "claude-fable-5-2": {
+      "input": 8,
+      "output": 40,
+      "cacheWrite5m": 10,
+      "cacheWrite1h": 16,
+      "cacheRead": 0.2
+    }
+  }
+}

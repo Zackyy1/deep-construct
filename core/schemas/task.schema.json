@@ -1,0 +1,51 @@
+{
+  "$id": "task.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task state. Written only by harness/bin/task.mjs.",
+  "type": "object",
+  "required": ["id", "title", "track", "skip", "stages", "stage", "status", "round",
+               "budget", "reports", "createdAt", "updatedAt", "history"],
+  "properties": {
+    "id": { "$ref": "common.schema.json#/definitions/taskId" },
+    "title": { "type": "string", "minLength": 1 },
+    "track": { "$ref": "common.schema.json#/definitions/track" },
+    "skip": { "type": "array", "items": { "$ref": "common.schema.json#/definitions/stage" } },
+    "stages": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/definitions/stage" } },
+    "stage": { "$ref": "common.schema.json#/definitions/stage" },
+    "status": { "enum": ["pending", "in_progress", "escalated", "done", "cancelled"] },
+    "owner": { "type": ["string", "null"] },
+    "round": { "type": "integer", "minimum": 1 },
+    "spec": { "type": ["string", "null"] },
+    "branch": { "type": ["string", "null"] },
+    "worktree": { "type": ["string", "null"] },
+    "budget": {
+      "type": "object",
+      "required": ["limitUsd", "spentUsd"],
+      "properties": {
+        "limitUsd": { "type": "number", "minimum": 0 },
+        "spentUsd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "reports": { "type": "array", "items": { "type": "string" } },
+    "escalation": {
+      "type": ["object", "null"],
+      "properties": { "reason": { "type": "string" }, "at": { "type": "string" } }
+    },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "event"],
+        "properties": {
+          "at": { "type": "string" },
+          "event": { "type": "string" },
+          "stage": { "type": "string" },
+          "by": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

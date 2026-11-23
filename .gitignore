@@ -1,0 +1,19 @@
+node_modules/
+.DS_Store
+
+# runtime state (lives on disk in the main worktree, never committed)
+tasks/*.json
+reports/inbox/*
+reports/archive/*
+!reports/**/.gitkeep
+.worktrees/
+
+# secrets and live sessions
+.env*
+!.env.example
+playwright/.auth/
+**/storageState*.json
+reports/evidence/
+reports/usage.jsonl
+reports/hook-errors.log
+tasks/.*.lock/

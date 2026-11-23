@@ -1,0 +1,15 @@
+{
+  "$id": "report-review.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Code review report. Any critical/high finding fails the gate.",
+  "allOf": [
+    { "$ref": "common.schema.json#/definitions/reportBase" },
+    {
+      "required": ["findings"],
+      "properties": {
+        "stage": { "const": "review" },
+        "findings": { "type": "array", "items": { "$ref": "common.schema.json#/definitions/finding" } }
+      }
+    }
+  ]
+}
