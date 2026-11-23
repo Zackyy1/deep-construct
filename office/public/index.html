@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>deep-construct office</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="stage">
+    <canvas id="office" aria-label="The deep-construct office. Drag to pan, scroll or pinch to zoom, click an agent to follow them."></canvas>
+
+    <header class="hud hud-title">
+      <strong>deep-construct</strong> <span>office</span>
+    </header>
+
+    <aside class="hud hud-legend" aria-label="Chair colours">
+      <span><i class="dot dot-opus"></i>Opus</span>
+      <span><i class="dot dot-sonnet"></i>Sonnet</span>
+      <span><i class="dot dot-haiku"></i>Haiku</span>
+      <button type="button" id="toggle-console" class="legend-toggle" aria-controls="console" aria-expanded="true" aria-label="Show or hide the console">☰</button>
+    </aside>
+
+    <section id="demo-panel" class="hud hud-demo" aria-label="Demo controls" hidden>
+      <span>Demo</span>
+      <button type="button" id="demo-all">Everyone to work</button>
+      <button type="button" id="demo-mix">Mix</button>
+      <button type="button" id="demo-none">Break time</button>
+    </section>
+
+    <section id="agent-card" class="hud agent-card" hidden aria-live="polite">
+      <button type="button" class="card-close" data-action="close" aria-label="Close">×</button>
+      <div class="card-head">
+        <strong data-field="name"></strong>
+        <span class="badge" data-field="model"></span>
+      </div>
+      <p data-field="role"></p>
+      <p class="status" data-field="status"></p>
+      <button type="button" class="card-action" data-action="toggle-work"></button>
+    </section>
+
+    <nav class="hud hud-zoom" aria-label="Zoom">
+      <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+      <span id="zoom-level" aria-live="off">1.0×</span>
+      <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+      <button type="button" id="zoom-fit" aria-label="Fit the office to the screen">Fit</button>
+    </nav>
+
+    <p class="hud hud-hint">Drag to pan · scroll / pinch to zoom · click someone to follow · <kbd>0</kbd> resets</p>
+    <p id="error" class="hud error" role="alert" hidden></p>
+  </main>
+
+  <aside id="console" class="console" aria-label="Orchestrator console">
+    <header class="console-head">
+      <div class="console-project">
+        <strong data-field="project">No project open</strong>
+        <span class="status-pill" data-field="status" data-status="stopped">Idle</span>
+      </div>
+      <button type="button" class="btn btn-stop" data-action="interrupt" hidden>Stop</button>
+    </header>
+
+    <section class="usage" aria-label="Usage"></section>
+
+    <ol class="log" aria-live="polite" aria-label="Conversation"></ol>
+
+    <ul class="now" aria-label="Working now" hidden></ul>
+
+    <section class="question-box" aria-label="Question from the orchestrator" hidden></section>
+
+    <form class="composer">
+      <textarea rows="3" aria-label="Message to the orchestrator"></textarea>
+      <div class="composer-row">
+        <p class="composer-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </div>
+    </form>
+  </aside>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

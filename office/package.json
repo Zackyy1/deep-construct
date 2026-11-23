@@ -1,0 +1,14 @@
+{
+  "name": "deep-construct-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The 2D office UI for deep-construct",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\""
+  }
+}
