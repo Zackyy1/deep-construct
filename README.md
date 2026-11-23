@@ -77,8 +77,9 @@ Requirements: Node.js 22.5 or later and git.
 You work with deep-construct through **the office**, a local 2D app in the browser. You type
 what you want into a prompt window, then watch the team work: agents at their desks, reports
 handed between them, escalations, spending. You answer the orchestrator's questions in the
-same window. No terminal is needed. The office runs the orchestrator through the Claude Agent
-SDK in the background, with the app's agents, hooks and rules loaded.
+same window. No terminal is needed. In the background, the office runs your own installed
+Claude Code (signed in with your own account) with the app's agents, hooks and rules loaded.
+The office never sees your credentials.
 
 The office is being built on the `office` branch. Until it lands, the team runs in a Claude Code
 terminal session (see below).
