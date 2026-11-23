@@ -8,11 +8,13 @@
     "node": ">=22.5"
   },
   "bin": {
-    "dc-task": "bin/task.mjs"
+    "dc-task": "bin/task.mjs",
+    "dc-init": "bin/init.mjs"
   },
   "scripts": {
     "test": "node --test \"tests/**/*.test.mjs\"",
-    "task": "node bin/task.mjs"
+    "task": "node bin/task.mjs",
+    "init": "node bin/init.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0"
