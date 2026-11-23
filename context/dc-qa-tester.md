@@ -8,7 +8,7 @@ Always:
 - `playbooks/dc-qa-tester.md`
 
 For this role:
-- `specs/<feature>/requirements.md`
+- `specs/<feature>/requirements.md`: only the ACs in Scope
 - `specs/<feature>/ux.md`
 - `specs/<feature>/architecture.md` if present (Test seams), otherwise the README: how to start the app
 - the earlier QA report named in your prompt, on a re-check round

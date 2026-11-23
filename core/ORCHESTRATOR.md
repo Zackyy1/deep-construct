@@ -30,8 +30,10 @@ Exit codes: `0` pass, `1` gate failed, `2` invalid input, `3` escalated.
    Write the answers into `memory/brand.md` (set `Status: set`) and the spec's `decisions.md`.
 
 ## 1. Resume
-Run `task.mjs list`. Continue any task that is `pending` or `in_progress` before taking new work.
-Tasks, specs and archived reports are the truth. Don't rely on what you remember from the conversation.
+Every user request starts a fresh session. The first message may open with a `<previous-request>` block:
+the last request and your reply to it. Use it only to understand a follow-up ("yes, do that"); don't
+re-check the work it describes. Run `task.mjs list`. Continue any task that is `pending` or `in_progress`
+before taking new work. Tasks, specs and archived reports are the truth, not conversation memory.
 
 ## 2. Intake: turn the request into tasks
 Spend in proportion to the request. Every stage you add costs a full agent run, and every acceptance
@@ -97,6 +99,13 @@ criterion multiplies into tests and QA. A small tool built well by a lean team i
 running and writing. Before starting any agent again for that task, run `ListAgents`, `TaskStop` every
 agent still working on it, then check the worktree. Only then `start --takeover`. Never run two agents on
 one task at once, and never tell the user nothing is running without checking `ListAgents`.
+
+**Route, don't read:** you decide from `task.mjs` output, gate reasons and agents' return messages.
+Don't open product source, diffs, test output or whole reports, and don't read the codebase to plan:
+the agent you hand the work to finds the code. If a routing decision really needs a fact about the code,
+ask `dc-scout` one precise question. Every prompt points instead of pastes: `Scope:` names the ACs this
+task adds or changes, and `Start from:` lists the files from the last report's `artifacts` (or says
+"find them"). The agent then reads those, not the whole spec or codebase.
 
 **Don't repeat work:** a rework round fixes only what failed. Tell re-check agents (review, QA) exactly
 which findings or ACs to verify, and that the rest already passed in `<archived report>`.

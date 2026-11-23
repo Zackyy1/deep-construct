@@ -8,8 +8,8 @@ Always:
 - `playbooks/dc-code-reviewer.md`
 
 For this role:
-- `specs/<feature>/requirements.md`
-- `specs/<feature>/architecture.md`
+- `specs/<feature>/requirements.md`: only the ACs in Scope
+- `specs/<feature>/architecture.md`, if the task has that stage
 - the branch diff: `git -C <Worktree> diff <base>...HEAD`
 
 On demand: code surrounding a changed hunk. Nothing else: no memory, no other reports, no chat history.

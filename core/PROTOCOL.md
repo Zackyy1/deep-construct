@@ -14,6 +14,8 @@ Worktree: /abs/path/.worktrees/T-0007 # where the code for this task is checked 
 Branch: task/T-0007-login-form
 Spec: specs/login-form/
 Report to: reports/inbox/T-0007-review-r2.json
+Scope: AC-15..AC-18                  # the acceptance criteria this task adds or changes
+Start from: src/App.tsx, src/calc.ts # files from the last report's artifacts, or "find them"
 Previous gate result: <reasons from the last failed round, verbatim, or "none">
 Instructions: <what to do>
 ```
@@ -29,7 +31,8 @@ written before the stage was last started is rejected as stale.
 
 1. Read `context/<your-agent-name>.md` and exactly the files it lists. Nothing else up front.
 2. Read `playbooks/<your-agent-name>.md`. Its rules come from past failures; follow them.
-3. Read more files only when the task needs them, and only within what your role may see.
+3. Read only the ACs in **Scope**, not the whole spec, and start from the files in **Start from**.
+   Open more only when the code leads you there, and only within what your role may see.
 
 ## 3. Stage reports (leads only)
 
