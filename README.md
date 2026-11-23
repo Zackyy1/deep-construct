@@ -70,7 +70,18 @@ A task is moved to `risky` automatically when its diff touches a risky path (`ri
 
 ## Getting started
 
-Requirements: Node.js 22.5 or later, git, and Claude Code.
+Requirements: Node.js 22.5 or later and git.
+
+### The office (in development)
+
+You work with deep-construct through **the office**, a local 2D app in the browser. You type
+what you want into a prompt window, then watch the team work: agents at their desks, reports
+handed between them, escalations, spending. You answer the orchestrator's questions in the
+same window. No terminal is needed. The office runs the orchestrator through the Claude Agent
+SDK in the background, with the app's agents, hooks and rules loaded.
+
+The office is being built on the `office` branch. Until it lands, the team runs in a Claude Code
+terminal session (see below).
 
 ### 1. Start an app
 
@@ -80,9 +91,7 @@ pointing back here.
 ```bash
 git clone <this repo> deep-construct
 node deep-construct/harness/bin/init.mjs ~/code/my-app
-cd ~/code/my-app
-npm --prefix harness install
-claude
+npm --prefix ~/code/my-app/harness install
 ```
 
 `init` copies the engine as committed at `HEAD` and writes the engine's version and commit into
@@ -90,9 +99,10 @@ the app's `dc.config.json` under `engine`. It refuses a target folder that isn't
 
 ### 2. Ask for what you want
 
-In the Claude Code session, describe the app or feature. The orchestrator splits it into tasks,
-picks tracks and runs the stages. On the first run of a product with a UI, it asks you to choose
-a brand direction.
+Describe the app or feature. The orchestrator splits it into tasks, picks tracks and runs the
+stages. On the first run of a product with a UI, it asks you to choose a brand direction.
+
+Until the office lands, run `claude` in the app folder and type your request there.
 
 ### 3. Check in when you like
 
